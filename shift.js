@@ -261,38 +261,58 @@ function checkSchedulingPermission(actionName) {
 }
 function autoFillShiftTime(shiftType) {
     const times = {
-        '早班': ['08:00', '16:00'],
-        '中班': ['12:00', '20:00'],
-        '晚班': ['16:00', '00:00'],
-        '全日班': ['09:00', '18:00'],
-        '排休': ['00:00', '00:00'] 
+        // 廚房班別
+        '廚房A班': ['11:00', '20:00'],
+        '廚房B班': ['11:30', '20:30'],
+        '廚房C班': ['12:00', '21:00'],
+        '廚房D班': ['13:00', '22:00'],
+        '廚房E班': ['14:00', '23:00'],
+        '廚房F班': ['15:00', '00:00'],
+        '廚房G班': ['11:30', '15:00'],
+        '廚房H班': ['18:00', '23:00'],
+        '廚房I班': ['18:00', '00:00'],
+        
+        // 外場班別
+        '外場A1班': ['11:00', '20:00'],
+        '外場A2班': ['11:30', '16:30'],
+        '外場A3班': ['11:30', '17:00'],
+        '外場B1班': ['16:00', '01:00'],
+        '外場B2班': ['17:00', '01:00'],
+        '外場B3班': ['18:00', '01:00'],
+        '外場B4班': ['19:00', '01:00'],
+        
+        // 假別
+        '年假': ['00:00', '00:00'],
+        '過年假': ['00:00', '00:00'],
+        '排休': ['00:00', '00:00']
     };
     
     const startTimeInput = document.getElementById('start-time');
     const endTimeInput = document.getElementById('end-time');
     
-    if (shiftType === '排休') {
-        // 排休時禁用時間選擇
+    // 假別處理
+    if (shiftType === '年假' || shiftType === '過年假' || shiftType === '排休') {
         startTimeInput.value = '00:00';
         endTimeInput.value = '00:00';
         startTimeInput.disabled = true;
         endTimeInput.disabled = true;
-    } else if (shiftType === '自訂') {
-        // 選擇「自訂」時,清空時間並啟用輸入
+    } 
+    // 自訂班別
+    else if (shiftType === '自訂') {
         startTimeInput.value = '';
         endTimeInput.value = '';
         startTimeInput.disabled = false;
         endTimeInput.disabled = false;
         startTimeInput.focus();
-    } else if (times[shiftType]) {
-        // 選擇預設班別時,自動填入時間並啟用
+    } 
+    // 預設班別
+    else if (times[shiftType]) {
         startTimeInput.value = times[shiftType][0];
         endTimeInput.value = times[shiftType][1];
         startTimeInput.disabled = false;
         endTimeInput.disabled = false;
     }
 }
-
 // ==================== 員工載入函式（完整除錯版） ====================
 
 /**
@@ -684,15 +704,35 @@ function createShiftItem(shift) {
     
     return div;
 }
+// 更新 getShiftTypeBadge 函數以支援新班別
 function getShiftTypeBadge(shiftType) {
     const badgeClass = {
-        '早班': 'badge-morning',
-        '中班': 'badge-afternoon',
-        '晚班': 'badge-night',
-        '全日班': 'badge-full',
+        // 廚房班別
+        '廚房A班': 'badge-kitchen-a',
+        '廚房B班': 'badge-kitchen-b',
+        '廚房C班': 'badge-kitchen-c',
+        '廚房D班': 'badge-kitchen-d',
+        '廚房E班': 'badge-kitchen-e',
+        '廚房F班': 'badge-kitchen-f',
+        '廚房G班': 'badge-kitchen-g',
+        '廚房H班': 'badge-kitchen-h',
+        '廚房I班': 'badge-kitchen-i',
+        
+        // 外場班別
+        '外場A1班': 'badge-floor-a1',
+        '外場A2班': 'badge-floor-a2',
+        '外場A3班': 'badge-floor-a3',
+        '外場B1班': 'badge-floor-b1',
+        '外場B2班': 'badge-floor-b2',
+        '外場B3班': 'badge-floor-b3',
+        '外場B4班': 'badge-floor-b4',
+        
+        // 假別
+        '年假': 'badge-annual-leave',
+        '過年假': 'badge-cny-leave',
         '排休': 'badge-dayoff',
         '自訂': 'badge-custom'
-    }[shiftType] || 'badge-morning';
+    }[shiftType] || 'badge-custom';
     
     return `<span class="badge ${badgeClass}">${shiftType}</span>`;
 }
@@ -1147,35 +1187,42 @@ function displayBatchPreview(data) {
     
     if (!previewDiv || !tableDiv) return;
     
-    let html = '<table style="width: 100%; border-collapse: collapse;">';
+    let html = '<div style="overflow-x: auto;">'; // 加入水平捲動容器
+    html += '<table style="width: 100%; border-collapse: collapse; min-width: 1200px;">'; // 設定最小寬度
+    
+    // ✅ 表頭：顯示所有欄位
     html += '<tr style="background: #f5f5f5;">';
-    // ✅ 修正：移除"排班ID"列
-    html += '<th style="padding: 12px; border: 1px solid #ddd; text-align: left;">員工ID</th>';
-    html += '<th style="padding: 12px; border: 1px solid #ddd; text-align: left;">員工姓名</th>';
-    html += '<th style="padding: 12px; border: 1px solid #ddd; text-align: left;">日期</th>';
-    html += '<th style="padding: 12px; border: 1px solid #ddd; text-align: left;">班別</th>';
-    html += '<th style="padding: 12px; border: 1px solid #ddd; text-align: left;">上班時間</th>';
-    html += '<th style="padding: 12px; border: 1px solid #ddd; text-align: left;">下班時間</th>';
-    html += '<th style="padding: 12px; border: 1px solid #ddd; text-align: left;">地點</th>';
+    html += '<th style="padding: 12px; border: 1px solid #ddd; text-align: left; white-space: nowrap;">員工ID</th>';
+    html += '<th style="padding: 12px; border: 1px solid #ddd; text-align: left; white-space: nowrap;">員工姓名</th>';
+    html += '<th style="padding: 12px; border: 1px solid #ddd; text-align: left; white-space: nowrap;">日期</th>';
+    html += '<th style="padding: 12px; border: 1px solid #ddd; text-align: left; white-space: nowrap;">班別</th>';
+    html += '<th style="padding: 12px; border: 1px solid #ddd; text-align: left; white-space: nowrap;">上班時間</th>';
+    html += '<th style="padding: 12px; border: 1px solid #ddd; text-align: left; white-space: nowrap;">下班時間</th>';
+    html += '<th style="padding: 12px; border: 1px solid #ddd; text-align: left; white-space: nowrap;">地點</th>';
+    html += '<th style="padding: 12px; border: 1px solid #ddd; text-align: left; min-width: 150px;">備註</th>'; // ✅ 新增備註欄
     html += '</tr>';
     
-    data.slice(0, 10).forEach((row, index) => {
+    // ✅ 資料列：顯示前 20 筆資料（增加顯示筆數）
+    data.slice(0, 20).forEach((row, index) => {
         html += '<tr style="border-bottom: 1px solid #eee;">';
-        html += `<td style="padding: 10px; border: 1px solid #ddd; font-size: 12px;">${row.employeeId}</td>`;
-        html += `<td style="padding: 10px; border: 1px solid #ddd;">${row.employeeName}</td>`;
-        html += `<td style="padding: 10px; border: 1px solid #ddd;">${row.date}</td>`;
-        html += `<td style="padding: 10px; border: 1px solid #ddd;">${row.shiftType}</td>`;
-        html += `<td style="padding: 10px; border: 1px solid #ddd;">${row.startTime}</td>`;
-        html += `<td style="padding: 10px; border: 1px solid #ddd;">${row.endTime}</td>`;
-        html += `<td style="padding: 10px; border: 1px solid #ddd;">${row.location}</td>`;
+        html += `<td style="padding: 10px; border: 1px solid #ddd; font-size: 12px; font-family: monospace;">${row.employeeId || ''}</td>`;
+        html += `<td style="padding: 10px; border: 1px solid #ddd;">${row.employeeName || ''}</td>`;
+        html += `<td style="padding: 10px; border: 1px solid #ddd; white-space: nowrap;">${row.date || ''}</td>`;
+        html += `<td style="padding: 10px; border: 1px solid #ddd; white-space: nowrap;">${row.shiftType || ''}</td>`;
+        html += `<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">${row.startTime || ''}</td>`;
+        html += `<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">${row.endTime || ''}</td>`;
+        html += `<td style="padding: 10px; border: 1px solid #ddd;">${row.location || ''}</td>`;
+        html += `<td style="padding: 10px; border: 1px solid #ddd; max-width: 200px; word-wrap: break-word;">${row.note || ''}</td>`; // ✅ 顯示備註
         html += '</tr>';
     });
     
-    if (data.length > 10) {
-        html += `<tr><td colspan="7" style="text-align: center; padding: 10px; color: #666;">還有 ${data.length - 10} 筆資料...</td></tr>`;
+    // ✅ 如果資料超過 20 筆，顯示提示
+    if (data.length > 20) {
+        html += `<tr><td colspan="8" style="text-align: center; padding: 10px; color: #666; background: #f9f9f9;">還有 ${data.length - 20} 筆資料...</td></tr>`;
     }
     
     html += '</table>';
+    html += '</div>'; // 結束捲動容器
     
     tableDiv.innerHTML = html;
     previewDiv.style.display = 'block';
@@ -1184,6 +1231,9 @@ function displayBatchPreview(data) {
     console.log('✅ 預覽表格已顯示，共', data.length, '筆資料');
 }
 
+/**
+ * ✅ 批量上傳（使用 FormData 避免 CORS）
+ */
 async function confirmBatchUpload() {
     if (!checkSchedulingPermission('批量上傳')) return;
     if (batchData.length === 0) return;
@@ -1192,57 +1242,74 @@ async function confirmBatchUpload() {
         const token = localStorage.getItem('sessionToken');
         
         console.log('📤 準備上傳批量資料:', batchData.length, '筆');
+        console.log('📋 前 3 筆資料預覽:', batchData.slice(0, 3));
         
-        // ⭐ 改用 GET 請求避免 CORS 問題
-        // 將資料轉成 JSON 字串並編碼
-        const shiftsJson = encodeURIComponent(JSON.stringify(batchData));
+        // ✅ 使用 URLSearchParams（不會觸發 preflight）
+        const formData = new URLSearchParams();
+        formData.append('action', 'batchAddShifts');
+        formData.append('token', token);
+        formData.append('shiftsArray', JSON.stringify(batchData));
         
-        const url = `${apiUrl}?action=batchAddShifts&token=${token}&shiftsArray=${shiftsJson}`;
-        
-        // 使用 JSONP 方式呼叫
-        const callbackName = 'batchUploadCallback_' + Date.now();
-        
-        return new Promise((resolve, reject) => {
-            // 建立回調函數
-            window[callbackName] = function(data) {
-                console.log('📥 批量上傳回應:', data);
-                
-                // 清理
-                delete window[callbackName];
-                document.body.removeChild(script);
-                
-                if (data.ok) {
-                    showMessage(data.msg || data.message || t('SHIFT_BATCH_UPLOAD_SUCCESS'), 'success');
-                    cancelBatchUpload();
-                    switchTab('view');
-                    loadShifts();
-                    resolve(data);
-                } else {
-                    showMessage(data.msg || data.message || t('SHIFT_BATCH_UPLOAD_FAILED'), 'error');
-                    reject(new Error(data.msg));
-                }
-            };
-            
-            // 建立 script 標籤
-            const script = document.createElement('script');
-            script.src = url + `&callback=${callbackName}`;
-            script.onerror = function() {
-                console.error('❌ 批量上傳失敗: 無法載入腳本');
-                delete window[callbackName];
-                document.body.removeChild(script);
-                showMessage(t('SHIFT_BATCH_NETWORK_ERROR'), 'error');
-                reject(new Error('Network error'));
-            };
-            
-            document.body.appendChild(script);
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: formData
         });
+        
+        console.log('📡 HTTP 狀態:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP 錯誤: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        console.log('📥 批量上傳回應:', data);
+        console.log('📊 詳細結果:');
+        console.log('   成功:', data.results?.success || 0);
+        console.log('   失敗:', data.results?.failed || 0);
+        if (data.results?.errors && data.results.errors.length > 0) {
+            console.log('   錯誤列表:');
+            data.results.errors.forEach((err, i) => {
+                console.log(`     ${i + 1}. ${err}`);
+            });
+        }
+       
+        if (data.ok || data.success) {
+            showMessage(data.msg || data.message || '批量上傳成功！', 'success');
+            cancelBatchUpload();
+            switchTab('view');
+            loadShifts();
+        } else {
+            let errorMsg = data.msg || data.message || '批量上傳失敗';
+            
+            if (data.results && data.results.errors && data.results.errors.length > 0) {
+                errorMsg += '\n\n錯誤詳情：\n' + data.results.errors.slice(0, 5).join('\n');
+                if (data.results.errors.length > 5) {
+                    errorMsg += `\n...還有 ${data.results.errors.length - 5} 個錯誤`;
+                }
+            }
+            
+            showMessage(errorMsg, 'error');
+        }
         
     } catch (error) {
         console.error('❌ 批量上傳失敗:', error);
-        showMessage(t('SHIFT_BATCH_UPLOAD_ERROR') + ': ' + error.message, 'error');
+        console.error('錯誤堆疊:', error.stack);
+        
+        let errorMsg = '批量上傳失敗：' + error.message;
+        
+        if (error.message.includes('Failed to fetch')) {
+            errorMsg = '網路連線失敗，請檢查：\n1. 網路連線是否正常\n2. API 網址是否正確\n3. 伺服器是否運作中';
+        } else if (error.message.includes('CORS')) {
+            errorMsg = 'CORS 錯誤，請確認：\n1. Google Apps Script 已正確部署\n2. 使用的是正確的部署 URL';
+        }
+        
+        showMessage(errorMsg, 'error');
     }
 }
-
 function cancelBatchUpload() {
     batchData = [];
     const previewDiv = document.getElementById('batch-preview');
@@ -1255,21 +1322,36 @@ function cancelBatchUpload() {
 }
 
 function downloadTemplate() {
-    // ✅ 修正：格式为「員工ID, 員工姓名, 日期, 班別, 上班時間, 下班時間, 地點, 備註」
+    // ✅ 包含所有班別類型：廚房、外場、年假（特休）、過年假、排休
     const template = '員工ID,員工姓名,日期,班別,上班時間,下班時間,地點,備註\n' +
-                    'Ue76b65367821240ac26387d2972a5adf,洪培瑜Eric,2026-01-25,早班,08:00,16:00,總公司,\n' +
-                    'Ue76b65367821240ac26387d2972a5adf,洪培瑜Eric,2026-01-26,中班,12:00,20:00,分公司,\n' +
-                    'EMP001,張三,2026-01-27,晚班,16:00,00:00,總公司,跨日班\n' +
-                    'EMP002,李四,2026-01-28,全日班,09:00,18:00,分公司,\n' +
-                    'EMP003,王五,2026-01-29,排休,00:00,00:00,總公司,休假日';
+                    'Ue76b65367821240ac26387d2972a5adf,洪培瑜Eric,2026-02-01,廚房A班,11:00,20:00,總公司,\n' +
+                    'Ue76b65367821240ac26387d2972a5adf,洪培瑜Eric,2026-02-02,廚房B班,11:30,20:30,分公司,\n' +
+                    'Ue76b65367821240ac26387d2972a5adf,洪培瑜Eric,2026-02-03,廚房C班,12:00,21:00,總公司,\n' +
+                    'Ue76b65367821240ac26387d2972a5adf,洪培瑜Eric,2026-02-04,外場A1班,11:00,20:00,總公司,\n' +
+                    'Ue76b65367821240ac26387d2972a5adf,洪培瑜Eric,2026-02-05,外場B1班,16:00,01:00,分公司,跨日班\n' +
+                    'Ue76b65367821240ac26387d2972a5adf,洪培瑜Eric,2026-02-06,廚房G班,11:30,15:00,總公司,短班\n' +
+                    'Ue76b65367821240ac26387d2972a5adf,洪培瑜Eric,2026-02-07,外場A2班,11:30,16:30,總公司,\n' +
+                    'Ue76b65367821240ac26387d2972a5adf,洪培瑜Eric,2026-02-08,年假,00:00,00:00,總公司,年假(特休)\n' +
+                    'Ue76b65367821240ac26387d2972a5adf,洪培瑜Eric,2026-02-09,過年假,00:00,00:00,總公司,春節假期\n' +
+                    'Ue76b65367821240ac26387d2972a5adf,洪培瑜Eric,2026-02-10,排休,00:00,00:00,總公司,一般休假\n' +
+                    'Ue76b65367821240ac26387d2972a5adf,洪培瑜Eric,2026-02-11,廚房H班,18:00,23:00,分公司,\n' +
+                    'Ue76b65367821240ac26387d2972a5adf,洪培瑜Eric,2026-02-12,外場B3班,18:00,01:00,總公司,跨日班';
     
     downloadCSV(template, '排班範本.csv');
     
     console.log('✅ 範本檔案已下載');
+    console.log('   共 12 筆測試資料');
+    console.log('   包含：廚房班別、外場班別、年假(特休)、過年假、排休');
     console.log('   格式: 員工ID, 員工姓名, 日期, 班別, 上班時間, 下班時間, 地點, 備註');
     
-    showMessage('✅ 範本下載成功！請依照範本格式填寫資料', 'success');
+    showMessage('✅ 範本下載成功！包含所有班別類型（含年假和過年假），請依照範本格式填寫', 'success');
 }
+
+
+
+
+
+
 
 
 // ========== 月曆功能 ==========
@@ -1357,28 +1439,34 @@ async function loadMonthlyStats() {
     }
 }
 
+
+// 更新 displayMonthlyStats 函數以支援新班別統計
 function displayMonthlyStats(shifts) {
     const statsGrid = document.getElementById('stats-grid');
     if (!statsGrid) return;
     
     const stats = {
         total: shifts.length,
-        morning: 0,
-        afternoon: 0,
-        night: 0,
-        full: 0,
+        kitchenShifts: 0,
+        floorShifts: 0,
+        annualLeave: 0,
+        cnyLeave: 0,
         dayoff: 0,
         custom: 0
     };
     
     shifts.forEach(shift => {
-        switch(shift.shiftType) {
-            case '早班': stats.morning++; break;
-            case '中班': stats.afternoon++; break;
-            case '晚班': stats.night++; break;
-            case '全日班': stats.full++; break;
-            case '排休': stats.dayoff++; break;
-            case '自訂': stats.custom++; break;
+        if (shift.shiftType.startsWith('廚房')) {
+            stats.kitchenShifts++;
+        } else if (shift.shiftType.startsWith('外場')) {
+            stats.floorShifts++;
+        } else {
+            switch(shift.shiftType) {
+                case '年假': stats.annualLeave++; break;
+                case '過年假': stats.cnyLeave++; break;
+                case '排休': stats.dayoff++; break;
+                case '自訂': stats.custom++; break;
+            }
         }
     });
     
@@ -1388,19 +1476,23 @@ function displayMonthlyStats(shifts) {
             <div class="stat-value">${stats.total}</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">${t('SHIFT_TYPE_MORNING')}</div>
-            <div class="stat-value" style="color: #ff9800;">${stats.morning}</div>
+            <div class="stat-label">廚房班別</div>
+            <div class="stat-value" style="color: #ff9800;">${stats.kitchenShifts}</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">${t('SHIFT_TYPE_AFTERNOON')}</div>
-            <div class="stat-value" style="color: #2196f3;">${stats.afternoon}</div>
+            <div class="stat-label">外場班別</div>
+            <div class="stat-value" style="color: #2196f3;">${stats.floorShifts}</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">${t('SHIFT_TYPE_NIGHT')}</div>
-            <div class="stat-value" style="color: #9c27b0;">${stats.night}</div>
+            <div class="stat-label">年假(特休)</div>
+            <div class="stat-value" style="color: #4caf50;">${stats.annualLeave}</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">${t('SHIFT_TYPE_DAYOFF')}</div>
+            <div class="stat-label">過年假</div>
+            <div class="stat-value" style="color: #f44336;">${stats.cnyLeave}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">排休</div>
             <div class="stat-value" style="color: #757575;">${stats.dayoff}</div>
         </div>
         ${stats.custom > 0 ? `
@@ -1413,6 +1505,7 @@ function displayMonthlyStats(shifts) {
     
     statsGrid.innerHTML = html;
 }
+
 
 async function loadMonthlyShifts() {
     const calendarGrid = document.getElementById('calendar-grid');
@@ -1506,18 +1599,37 @@ function displayMonthCalendar(shifts) {
     calendarGrid.innerHTML = html;
 }
 
+// 更新 getShiftClass 函數
 function getShiftClass(shiftType) {
     const classMap = {
-        '早班': 'shift-morning',
-        '中班': 'shift-afternoon',
-        '晚班': 'shift-night',
-        '全日班': 'shift-full',
+        // 廚房班別
+        '廚房A班': 'shift-kitchen-a',
+        '廚房B班': 'shift-kitchen-b',
+        '廚房C班': 'shift-kitchen-c',
+        '廚房D班': 'shift-kitchen-d',
+        '廚房E班': 'shift-kitchen-e',
+        '廚房F班': 'shift-kitchen-f',
+        '廚房G班': 'shift-kitchen-g',
+        '廚房H班': 'shift-kitchen-h',
+        '廚房I班': 'shift-kitchen-i',
+        
+        // 外場班別
+        '外場A1班': 'shift-floor-a1',
+        '外場A2班': 'shift-floor-a2',
+        '外場A3班': 'shift-floor-a3',
+        '外場B1班': 'shift-floor-b1',
+        '外場B2班': 'shift-floor-b2',
+        '外場B3班': 'shift-floor-b3',
+        '外場B4班': 'shift-floor-b4',
+        
+        // 假別
+        '年假': 'shift-annual-leave',
+        '過年假': 'shift-cny-leave',
         '排休': 'shift-dayoff',
         '自訂': 'shift-custom'
     };
-    return classMap[shiftType] || 'shift-morning';
+    return classMap[shiftType] || 'shift-custom';
 }
-
 function showShiftDetail(shiftId) {
     const shift = allMonthShifts.find(s => s.shiftId === shiftId);
     if (shift) {
