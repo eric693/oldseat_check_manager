@@ -3778,6 +3778,9 @@ async function doPunch(type) {
             const userId = localStorage.getItem('sessionUserId');
             const today = new Date().toISOString().split('T')[0];
             
+            // ⭐⭐⭐ 修正：定義 currentTime
+            const now = new Date();
+            const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
             const shiftRes = await callApifetch(`getEmployeeShiftForDate&employeeId=${userId}&date=${today}`);
             
             if (shiftRes.ok && shiftRes.hasShift) {
