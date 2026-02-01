@@ -286,6 +286,7 @@ function autoFillShiftTime(shiftType) {
         // ========== 假別（3個） ==========
         '年假(特休)': ['00:00', '00:00'],
         '過年假': ['00:00', '00:00'],
+        '國定假日': ['00:00', '00:00'],
         '排休': ['00:00', '00:00']
     };
     
@@ -293,7 +294,7 @@ function autoFillShiftTime(shiftType) {
     const endTimeInput = document.getElementById('end-time');
     
     // 假別處理
-    if (shiftType === '年假(特休)' || shiftType === '過年假' || shiftType === '排休') {
+    if (shiftType === '年假(特休)' || shiftType === '過年假' || shiftType === '國定假日' || shiftType === '排休') {
         startTimeInput.value = '00:00';
         endTimeInput.value = '00:00';
         startTimeInput.disabled = true;
@@ -414,9 +415,6 @@ async function loadEmployees() {
     }
 }
 
-/**
- * ✅ 填入員工下拉選單（加強除錯版）
- */
 function populateEmployeeSelect() {
     console.log('');
     console.log('📝 populateEmployeeSelect 開始');
@@ -424,34 +422,22 @@ function populateEmployeeSelect() {
     
     const select = document.getElementById('employee-select');
     
-    // ✅ 檢查元素是否存在
     if (!select) {
         console.error('❌ 找不到 employee-select 元素');
-        console.error('   請檢查 HTML 中是否有:');
-        console.error('   <select id="employee-select">');
         return;
     }
     
     console.log('✅ 找到 employee-select 元素');
-    console.log('   當前選項數量:', select.options.length);
     
-    // ✅ 檢查員工列表
-    if (!allEmployees) {
-        console.error('❌ allEmployees 是 undefined 或 null');
-        return;
-    }
-    
-    if (!Array.isArray(allEmployees)) {
-        console.error('❌ allEmployees 不是陣列');
-        console.error('   型別:', typeof allEmployees);
-        console.error('   內容:', allEmployees);
+    if (!allEmployees || !Array.isArray(allEmployees)) {
+        console.error('❌ allEmployees 不是有效的陣列');
         return;
     }
     
     console.log('✅ allEmployees 驗證通過');
     console.log('   員工數量:', allEmployees.length);
     
-    // ✅ 清空並重設為預設選項
+    // 清空並重設為預設選項
     select.innerHTML = '<option value="">請選擇員工</option>';
     console.log('✅ 已重設為預設選項');
     
@@ -461,7 +447,7 @@ function populateEmployeeSelect() {
         return;
     }
     
-    // ✅ 填入員工選項
+    // 填入員工選項
     console.log('📝 開始逐筆填入...');
     
     let successCount = 0;
@@ -469,15 +455,8 @@ function populateEmployeeSelect() {
     
     allEmployees.forEach((emp, index) => {
         try {
-            // 驗證必要欄位
-            if (!emp.userId) {
-                console.warn(`   ⚠️ 第 ${index + 1} 筆: 缺少 userId，跳過`);
-                failCount++;
-                return;
-            }
-            
-            if (!emp.name) {
-                console.warn(`   ⚠️ 第 ${index + 1} 筆: 缺少 name，跳過`);
+            if (!emp.userId || !emp.name) {
+                console.warn(`   ⚠️ 第 ${index + 1} 筆: 缺少必要欄位，跳過`);
                 failCount++;
                 return;
             }
@@ -492,10 +471,8 @@ function populateEmployeeSelect() {
             }
             
             select.appendChild(option);
-            
             successCount++;
             
-            // 只顯示前 5 筆的詳細資訊
             if (index < 5) {
                 console.log(`   ✅ ${index + 1}. ${emp.name} (${emp.userId})`);
             }
@@ -514,11 +491,50 @@ function populateEmployeeSelect() {
     console.log('📊 填入結果:');
     console.log('   成功:', successCount, '筆');
     console.log('   失敗:', failCount, '筆');
-    console.log('   總計:', allEmployees.length, '筆');
-    console.log('   最終選項數量:', select.options.length, '個（含預設選項）');
     console.log('───────────────────────────────────────');
     console.log('✅ populateEmployeeSelect 完成');
     console.log('');
+    
+    // ⭐⭐⭐ 新增：同時填入篩選下拉框
+    populateEmployeeFilter();
+}
+
+/**
+ * ⭐ 新增：填入員工篩選下拉框
+ */
+function populateEmployeeFilter() {
+    const filterSelect = document.getElementById('filter-employees');
+    
+    if (!filterSelect) {
+        console.warn('⚠️ 找不到 filter-employees 元素');
+        return;
+    }
+    
+    console.log('📝 開始填入員工篩選下拉框...');
+    
+    // 保留「全部」選項
+    filterSelect.innerHTML = '<option value="">全部</option>';
+    
+    if (!allEmployees || allEmployees.length === 0) {
+        console.warn('⚠️ 沒有員工可以填入篩選框');
+        return;
+    }
+    
+    allEmployees.forEach(emp => {
+        if (!emp.userId || !emp.name) return;
+        
+        const option = document.createElement('option');
+        option.value = emp.userId;
+        option.textContent = emp.name;
+        
+        if (emp.dept) {
+            option.textContent += ` (${emp.dept})`;
+        }
+        
+        filterSelect.appendChild(option);
+    });
+    
+    console.log(`✅ 員工篩選下拉框已填入 ${allEmployees.length} 位員工`);
 }
 
 // ==================== 除錯工具函式 ====================
@@ -734,6 +750,7 @@ function getShiftTypeBadge(shiftType) {
         // 假別（3個）
         '年假(特休)': 'badge-annual-leave',
         '過年假': 'badge-cny-leave',
+        '國定假日': 'badge-national-holiday',
         '排休': 'badge-dayoff',
         '自訂': 'badge-custom'
     }[shiftType] || 'badge-custom';
@@ -820,7 +837,7 @@ async function addShift() {
 }
 
 async function editShift(shiftId) {
-    if (!checkAdminPermission('編輯排班')) return;
+    if (!checkSchedulingPermission('編輯排班')) return;
     const shift = currentShifts.find(s => s.shiftId === shiftId);
     if (!shift) return;
     
@@ -921,30 +938,45 @@ async function deleteShift(shiftId) {
 function filterShifts() {
     const filters = {};
     
-    const employeeEl = document.getElementById('filter-employee');
     const startDateEl = document.getElementById('filter-start-date');
     const endDateEl = document.getElementById('filter-end-date');
     const shiftTypeEl = document.getElementById('filter-shift-type');
     const locationEl = document.getElementById('filter-location');
     
-    if (employeeEl && employeeEl.value) filters.employeeId = employeeEl.value;
+    // ⭐⭐⭐ 新增：取得選擇的員工（多選）
+    const employeesEl = document.getElementById('filter-employees');
+    const selectedEmployees = Array.from(employeesEl.selectedOptions)
+        .map(opt => opt.value)
+        .filter(val => val !== ''); // 過濾掉「全部」選項
+    
     if (startDateEl && startDateEl.value) filters.startDate = startDateEl.value;
     if (endDateEl && endDateEl.value) filters.endDate = endDateEl.value;
     if (shiftTypeEl && shiftTypeEl.value) filters.shiftType = shiftTypeEl.value;
     if (locationEl && locationEl.value) filters.location = locationEl.value;
     
+    // ⭐⭐⭐ 新增：如果有選擇員工，加入篩選條件
+    if (selectedEmployees.length > 0) {
+        filters.employeeIds = selectedEmployees;
+    }
+    
     console.log('🔍 篩選條件:', filters);
-    loadShifts(filters);
+    
+    loadShiftsWithMultipleEmployees(filters);
 }
-
 function clearFilters() {
-    const employeeEl = document.getElementById('filter-employee');
     const shiftTypeEl = document.getElementById('filter-shift-type');
     const locationEl = document.getElementById('filter-location');
+    const employeesEl = document.getElementById('filter-employees');  // ⭐ 新增
     
-    if (employeeEl) employeeEl.value = '';
     if (shiftTypeEl) shiftTypeEl.value = '';
     if (locationEl) locationEl.value = '';
+    
+    // ⭐⭐⭐ 新增：清除員工多選
+    if (employeesEl) {
+        Array.from(employeesEl.options).forEach(option => {
+            option.selected = false;
+        });
+    }
     
     // 重設為本週
     const startOfWeek = new Date();
@@ -957,6 +989,7 @@ function clearFilters() {
     
     loadShifts();
 }
+
 
 function exportShifts() {
     if (currentShifts.length === 0) {
@@ -1050,6 +1083,90 @@ function setupBatchUpload() {
     });
 }
 
+/**
+ * ⭐ 新增：支援多員工篩選的載入函數
+ */
+async function loadShiftsWithMultipleEmployees(filters = {}) {
+    const listContainer = document.getElementById('shift-list');
+    if (!listContainer) return;
+    
+    listContainer.innerHTML = `<div class="loading">${t('SHIFT_LOADING')}</div>`;
+    
+    try {
+        const token = localStorage.getItem('sessionToken');
+        
+        // 使用預設日期範圍
+        if (!filters.startDate && !filters.endDate) {
+            const startDateEl = document.getElementById('filter-start-date');
+            const endDateEl = document.getElementById('filter-end-date');
+            if (startDateEl && startDateEl.value) filters.startDate = startDateEl.value;
+            if (endDateEl && endDateEl.value) filters.endDate = endDateEl.value;
+        }
+        
+        // ⭐ 如果有多個員工，需要多次呼叫 API 然後合併結果
+        let allShifts = [];
+        
+        if (filters.employeeIds && filters.employeeIds.length > 0) {
+            console.log(`📋 查詢 ${filters.employeeIds.length} 位員工的排班...`);
+            
+            for (const employeeId of filters.employeeIds) {
+                const queryParams = new URLSearchParams({
+                    action: 'getShifts',
+                    token: token,
+                    employeeId: employeeId
+                });
+                
+                if (filters.startDate) queryParams.append('startDate', filters.startDate);
+                if (filters.endDate) queryParams.append('endDate', filters.endDate);
+                if (filters.shiftType) queryParams.append('shiftType', filters.shiftType);
+                if (filters.location) queryParams.append('location', filters.location);
+                
+                const response = await fetch(`${apiUrl}?${queryParams}`);
+                const data = await response.json();
+                
+                if (data.ok && data.data) {
+                    allShifts = allShifts.concat(data.data);
+                }
+            }
+            
+            console.log(`✅ 總共找到 ${allShifts.length} 筆排班`);
+            
+        } else {
+            // 沒有選擇員工，使用原本的邏輯
+            const queryParams = new URLSearchParams({
+                action: 'getShifts',
+                token: token
+            });
+            
+            if (filters.startDate) queryParams.append('startDate', filters.startDate);
+            if (filters.endDate) queryParams.append('endDate', filters.endDate);
+            if (filters.shiftType) queryParams.append('shiftType', filters.shiftType);
+            if (filters.location) queryParams.append('location', filters.location);
+            
+            const response = await fetch(`${apiUrl}?${queryParams}`);
+            const data = await response.json();
+            
+            if (data.ok) {
+                allShifts = data.data || [];
+            }
+        }
+        
+        // 去除重複的排班（根據 shiftId）
+        const uniqueShifts = Array.from(
+            new Map(allShifts.map(shift => [shift.shiftId, shift])).values()
+        );
+        
+        // 按日期排序
+        uniqueShifts.sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        currentShifts = uniqueShifts;
+        displayShifts(currentShifts);
+        
+    } catch (error) {
+        console.error('❌ 載入排班失敗:', error);
+        listContainer.innerHTML = `<div class="empty-state"><div class="empty-state-icon">❌</div><p>${t('SHIFT_LOAD_ERROR')}</p></div>`;
+    }
+}
 function handleBatchFile(file) {
     const reader = new FileReader();
     
@@ -1349,6 +1466,7 @@ function downloadTemplate() {
                     'Udf67b768920d99e5754478ff8c14f13f,洪培瑜Eric,2026-02-20,過年假,00:00,00:00,總公司,春節假期';
     
     downloadCSV(template, '排班範本_新班別.csv');
+    console.log('   包含：廚房班別、外場班別、年假(特休)、過年假、國定假日、排休');
     showMessage('✅ 範本下載成功！包含所有新班別（廚房8個+外場10個+假別3個）', 'success');
 }
 
@@ -1455,6 +1573,7 @@ function displayMonthlyStats(shifts) {
         floorShifts: 0,
         annualLeave: 0,
         cnyLeave: 0,
+        nationalHoliday: 0,
         dayoff: 0,
         custom: 0
     };
@@ -1468,6 +1587,7 @@ function displayMonthlyStats(shifts) {
             switch(shift.shiftType) {
                 case '年假': stats.annualLeave++; break;
                 case '過年假': stats.cnyLeave++; break;
+                case '國定假日': stats.nationalHoliday++; break;
                 case '排休': stats.dayoff++; break;
                 case '自訂': stats.custom++; break;
             }
@@ -1494,6 +1614,11 @@ function displayMonthlyStats(shifts) {
         <div class="stat-card">
             <div class="stat-label">過年假</div>
             <div class="stat-value" style="color: #f44336;">${stats.cnyLeave}</div>
+        </div>
+        <!-- ⭐ 新增國定假日統計 -->
+        <div class="stat-card">
+            <div class="stat-label">國定假日</div>
+            <div class="stat-value" style="color: #ff9800;">${stats.nationalHoliday}</div>
         </div>
         <div class="stat-card">
             <div class="stat-label">排休</div>
@@ -1631,6 +1756,7 @@ function getShiftClass(shiftType) {
         // 假別（3個）
         '年假(特休)': 'shift-annual-leave',
         '過年假': 'shift-cny-leave',
+        '國定假日': 'shift-national-holiday',
         '排休': 'shift-dayoff',
         '自訂': 'shift-custom'
     };
