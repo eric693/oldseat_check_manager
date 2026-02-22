@@ -1168,17 +1168,44 @@ async function loadShiftsWithMultipleEmployees(filters = {}) {
     }
 }
 function handleBatchFile(file) {
-    const reader = new FileReader();
+    const fileName = file.name.toLowerCase();
     
-    reader.onload = function(e) {
-        const content = e.target.result;
-        parseBatchData(content, file.name);
-    };
-    
-    if (file.name.endsWith('.csv')) {
+    if (fileName.endsWith('.csv')) {
+        // CSV 處理（原有邏輯）
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            let content = e.target.result;
+            parseBatchData(content, file.name);
+        };
         reader.readAsText(file, 'UTF-8');
+        
+    } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                // ⭐ 加上 cellDates: true，讓日期保持 Date 物件
+                const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                
+                // ⭐ 指定日期格式為 YYYY-MM-DD
+                const csv = XLSX.utils.sheet_to_csv(worksheet, { 
+                    dateNF: 'yyyy-mm-dd' 
+                });
+                
+                parseBatchData(csv, file.name);
+                
+            } catch (error) {
+                console.error('Excel 解析失敗:', error);
+                showMessage('Excel 檔案解析失敗，請確認格式正確', 'error');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+        
     } else {
-        showMessage(t('SHIFT_BATCH_CSV_ONLY'), 'error');
+        showMessage('僅支援 CSV、XLS、XLSX 格式', 'error');
     }
 }
 
@@ -1231,6 +1258,11 @@ function parseBatchData(content, filename) {
             console.log('    下班時間:', shift.endTime);
             console.log('    地點:', shift.location);
             
+            // ⭐ 標準化日期格式（處理 2026/2/2 → 2026-02-02）
+            if (shift.date && shift.date.includes('/')) {
+                const parts = shift.date.split('/');
+                shift.date = `${parts[0]}-${String(parts[1]).padStart(2, '0')}-${String(parts[2]).padStart(2, '0')}`;
+            }
             // 驗證必填欄位
             if (shift.employeeId && shift.date && shift.shiftType) {
                 data.push(shift);
@@ -1265,6 +1297,7 @@ function parseBatchData(content, filename) {
     batchData = data;
     displayBatchPreview(data);
 }
+
 
 /**
  * ⭐ 正確解析 CSV 行(處理引號)
@@ -1892,35 +1925,38 @@ function formatDateYMD(date) {
  * - Date 物件 → "HH:MM"
  */
 function formatTimeOnly(timeValue) {
-    if (!timeValue) return '--:--';
+    // ⭐ 修正：改用 == null 而非 !timeValue，避免 0 被當成 false
+    if (timeValue == null || timeValue === '') return '00:00';
     
-    // 如果已經是 HH:MM 格式,直接返回
+    // 已經是 HH:MM 格式
     if (typeof timeValue === 'string' && /^\d{2}:\d{2}$/.test(timeValue)) {
         return timeValue;
     }
     
-    // 如果是 ISO 格式字串
+    // ⭐ 新增：處理 "0:00" 或 "0" 這種格式
+    if (typeof timeValue === 'string' && /^\d{1}:\d{2}$/.test(timeValue)) {
+        return '0' + timeValue; // "0:00" → "00:00"
+    }
+    
+    // ISO 格式字串
     if (typeof timeValue === 'string' && timeValue.includes('T')) {
         try {
             const date = new Date(timeValue);
-            // 轉換為台灣時間 (UTC+8)
             const hours = String(date.getUTCHours() + 8).padStart(2, '0');
             const minutes = String(date.getUTCMinutes()).padStart(2, '0');
             return `${hours}:${minutes}`;
         } catch (e) {
-            console.error('時間格式錯誤:', timeValue);
-            return '--:--';
+            return '00:00';
         }
     }
     
-    // 如果是 Date 物件
+    // Date 物件
     if (timeValue instanceof Date) {
         const hours = String(timeValue.getHours()).padStart(2, '0');
         const minutes = String(timeValue.getMinutes()).padStart(2, '0');
         return `${hours}:${minutes}`;
     }
     
-    // 其他情況直接返回
     return String(timeValue);
 }
 
