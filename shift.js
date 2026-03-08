@@ -1570,22 +1570,23 @@ async function loadMonthlyStats() {
         const token = localStorage.getItem('sessionToken');
         const startDate = new Date(currentYear, currentMonth, 1);
         const endDate = new Date(currentYear, currentMonth + 1, 0);
-        
+
         const queryParams = new URLSearchParams({
             action: 'getShifts',
             token: token,
             startDate: formatDateYMD(startDate),
             endDate: formatDateYMD(endDate)
         });
-        
+
         const response = await fetch(`${apiUrl}?${queryParams}`);
         const data = await response.json();
-        
-        console.log('📊 月度統計:', data);
-        
+
         if (data.ok && data.data) {
             allMonthShifts = data.data;
-            displayMonthlyStats(data.data);
+
+            // ⭐ 兩邊都更新
+            displayMonthlyStatsKitchen(data.data);
+            displayMonthlyStatsFloor(data.data);
         }
     } catch (error) {
         console.error('載入月度統計失敗:', error);
@@ -1668,17 +1669,15 @@ function displayMonthlyStats(shifts) {
 
 
 async function loadMonthlyShifts() {
-    const calendarGrid = document.getElementById('calendar-grid');
-    if (!calendarGrid) return;
-    
-    calendarGrid.innerHTML = '<div class="loading">載入月曆中</div>';
-    
-    try {
-        displayMonthCalendar(allMonthShifts);
-    } catch (error) {
-        console.error('載入月曆失敗:', error);
-        calendarGrid.innerHTML = '<div class="loading">載入失敗</div>';
-    }
+    // ⭐ 同時更新廚房與外場月曆
+    displayMonthCalendar(
+        allMonthShifts.filter(s => s.shiftType.startsWith('廚房')),
+        'calendar-grid-kitchen'
+    );
+    displayMonthCalendar(
+        allMonthShifts.filter(s => s.shiftType.startsWith('外場')),
+        'calendar-grid-floor'
+    );
 }
 // 更新 getShiftClass 函數
 function getShiftClass(shiftType) {
