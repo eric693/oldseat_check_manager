@@ -725,6 +725,25 @@
             margin-top: 4px;
         }
 
+        .stats-sub-tab {
+            padding: 10px 24px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 15px;
+            color: #666;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        .stats-sub-tab.active {
+            color: #4285f4;
+            border-bottom-color: #4285f4;
+            font-weight: 600;
+        }
+        .stats-sub-tab:hover {
+            color: #4285f4;
+        }
         /* 響應式設計 */
         @media (max-width: 768px) {
             .shift-container {
@@ -1009,35 +1028,72 @@
 
         <!-- 統計分析 -->
         <div id="stats-tab" class="tab-content">
-            <div id="stats-grid" class="stats-grid">
-                <div class="loading" data-i18n="SHIFT_STATS_LOADING">載入統計資料中</div>
+
+            <!-- 子分頁切換 -->
+            <div class="stats-sub-tabs" style="display:flex; gap:10px; margin-bottom:20px; border-bottom:2px solid #e0e0e0;">
+                <button class="stats-sub-tab active" data-subtab="kitchen" onclick="switchStatsTab('kitchen')">廚房統計分析</button>
+                <button class="stats-sub-tab" data-subtab="floor" onclick="switchStatsTab('floor')">外場統計分析</button>
             </div>
 
-            <div class="calendar-header">
-                <div class="month-selector">
-                    <button class="month-btn" onclick="previousMonth()" data-i18n="BTN_PREV_MONTH">◀ 上個月</button>
-                    <div class="current-month" id="current-month">2025年10月</div>
-                    <button class="month-btn" onclick="nextMonth()" data-i18n="BTN_NEXT_MONTH">下個月 ▶</button>
+            <!-- 廚房統計 -->
+            <div id="stats-kitchen" class="stats-sub-content active">
+                <div id="stats-grid-kitchen" class="stats-grid">
+                    <div class="loading">載入統計資料中</div>
                 </div>
-                <button class="today-btn" onclick="goToToday()" data-i18n="BTN_TODAY">回到今天</button>
+                <div class="calendar-header">
+                    <div class="month-selector">
+                        <button class="month-btn" onclick="previousMonth()">◀ 上個月</button>
+                        <div class="current-month" id="current-month-kitchen">2026年3月</div>
+                        <button class="month-btn" onclick="nextMonth()">下個月 ▶</button>
+                    </div>
+                    <button class="today-btn" onclick="goToToday()">回到今天</button>
+                </div>
+                <div class="calendar-container">
+                    <div class="calendar-weekdays">
+                        <div class="calendar-weekday">日</div>
+                        <div class="calendar-weekday">一</div>
+                        <div class="calendar-weekday">二</div>
+                        <div class="calendar-weekday">三</div>
+                        <div class="calendar-weekday">四</div>
+                        <div class="calendar-weekday">五</div>
+                        <div class="calendar-weekday">六</div>
+                    </div>
+                    <div id="calendar-grid-kitchen" class="calendar-grid">
+                        <div class="loading">載入月曆中</div>
+                    </div>
+                </div>
+                <div id="shift-distribution-kitchen"></div>
             </div>
 
-            <div class="calendar-container">
-                <div class="calendar-weekdays">
-                    <div class="calendar-weekday" data-i18n="WEEK_SUNDAY">日</div>
-                    <div class="calendar-weekday" data-i18n="WEEK_MONDAY">一</div>
-                    <div class="calendar-weekday" data-i18n="WEEK_TUESDAY">二</div>
-                    <div class="calendar-weekday" data-i18n="WEEK_WEDNESDAY">三</div>
-                    <div class="calendar-weekday" data-i18n="WEEK_THURSDAY">四</div>
-                    <div class="calendar-weekday" data-i18n="WEEK_FRIDAY">五</div>
-                    <div class="calendar-weekday" data-i18n="WEEK_SATURDAY">六</div>
+            <!-- 外場統計 -->
+            <div id="stats-floor" class="stats-sub-content" style="display:none;">
+                <div id="stats-grid-floor" class="stats-grid">
+                    <div class="loading">載入統計資料中</div>
                 </div>
-                <div id="calendar-grid" class="calendar-grid">
-                    <div class="loading" data-i18n="SHIFT_CALENDAR_LOADING">載入月曆中</div>
+                <div class="calendar-header">
+                    <div class="month-selector">
+                        <button class="month-btn" onclick="previousMonth()">◀ 上個月</button>
+                        <div class="current-month" id="current-month-floor">2026年3月</div>
+                        <button class="month-btn" onclick="nextMonth()">下個月 ▶</button>
+                    </div>
+                    <button class="today-btn" onclick="goToToday()">回到今天</button>
                 </div>
+                <div class="calendar-container">
+                    <div class="calendar-weekdays">
+                        <div class="calendar-weekday">日</div>
+                        <div class="calendar-weekday">一</div>
+                        <div class="calendar-weekday">二</div>
+                        <div class="calendar-weekday">三</div>
+                        <div class="calendar-weekday">四</div>
+                        <div class="calendar-weekday">五</div>
+                        <div class="calendar-weekday">六</div>
+                    </div>
+                    <div id="calendar-grid-floor" class="calendar-grid">
+                        <div class="loading">載入月曆中</div>
+                    </div>
+                </div>
+                <div id="shift-distribution-floor"></div>
             </div>
-
-            <div id="shift-distribution"></div>
         </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
