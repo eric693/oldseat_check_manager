@@ -6,7 +6,7 @@ const SHEET_OVERTIME = "加班申請";
 // ==================== 資料庫操作 ====================
 
 /**
- * 初始化加班申請工作表（修改版 - 加入補休時數欄位）
+ * 初始化加班申請工作表
  */
 function initOvertimeSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -14,7 +14,6 @@ function initOvertimeSheet() {
   
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_OVERTIME);
-    // ✅ 加入「補休時數」欄位
     const headers = [
       "申請ID", "員工ID", "員工姓名", "加班日期", 
       "開始時間", "結束時間", "加班時數", "申請原因",
@@ -30,7 +29,7 @@ function initOvertimeSheet() {
 }
 
 /**
- * 提交加班申請（修改版 - 加入補休時數）
+ * 提交加班申請（修正版 - 加入防重複提交）
  */
 function submitOvertimeRequest(sessionToken, overtimeDate, startTime, endTime, hours, reason, compensatoryHours) {
   const employee = checkSession_(sessionToken);
@@ -38,13 +37,36 @@ function submitOvertimeRequest(sessionToken, overtimeDate, startTime, endTime, h
   if (!user) return { ok: false, code: "ERR_SESSION_INVALID" };
   
   const sheet = initOvertimeSheet();
+  
+  // ✅ 防重複提交：檢查同一員工同一日期是否已有 pending 申請
+  const values = sheet.getDataRange().getValues();
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    const rowUserId = String(row[1]).trim();
+    const rowDate = formatDate(row[3]);
+    const rowStatus = String(row[9]).trim().toLowerCase();
+    const rowStartTime = typeof row[4] === 'object' 
+      ? Utilities.formatDate(row[4], "Asia/Taipei", "HH:mm")
+      : String(row[4]).substring(0, 5);
+    
+    if (rowUserId === user.userId && 
+        rowDate === overtimeDate && 
+        rowStartTime === startTime &&
+        rowStatus === "pending") {
+      Logger.log(`⚠️ 防重複: ${user.name} 在 ${overtimeDate} ${startTime} 已有待審核申請`);
+      return { 
+        ok: false, 
+        code: "ERR_DUPLICATE_OVERTIME",
+        msg: "您已提交過相同時段的加班申請，請等待審核"
+      };
+    }
+  }
+  
   const requestId = "OT" + new Date().getTime();
   
-  // 組合完整的日期時間格式
   const startDateTime = new Date(`${overtimeDate}T${startTime}:00`);
   const endDateTime = new Date(`${overtimeDate}T${endTime}:00`);
   
-  // ✅ 處理補休時數（預設為 0）
   const compHours = parseFloat(compensatoryHours) || 0;
   
   Logger.log(`📝 提交加班: ${user.name}, 日期=${overtimeDate}, 時數=${hours}, 補休=${compHours}`);
@@ -61,7 +83,7 @@ function submitOvertimeRequest(sessionToken, overtimeDate, startTime, endTime, h
     new Date(),
     "pending",
     "", "", "", "",
-    compHours  // ✅ 補休時數
+    compHours
   ];
   
   sheet.appendRow(row);
@@ -72,7 +94,6 @@ function submitOvertimeRequest(sessionToken, overtimeDate, startTime, endTime, h
     requestId: requestId
   };
 }
-
 
 /**
  * Handler - 接收補休時數參數
@@ -89,7 +110,7 @@ function handleSubmitOvertime(params) {
     endTime, 
     parseFloat(hours), 
     reason,
-    parseFloat(compensatoryHours) || 0  // ✅ 補休時數，預設 0
+    parseFloat(compensatoryHours) || 0
   );
 }
 
@@ -129,7 +150,7 @@ function getEmployeeOvertimeRequests(sessionToken) {
       status: String(row[9]).trim().toLowerCase(),
       reviewerName: row[11] || "",
       reviewComment: row[13] || "",
-      compensatoryHours: parseFloat(row[14]) || 0  // ✅ 加入這行
+      compensatoryHours: parseFloat(row[14]) || 0
     };
   });
   
@@ -138,7 +159,7 @@ function getEmployeeOvertimeRequests(sessionToken) {
 }
 
 /**
- * 取得所有待審核的加班申請（管理員用）
+ * 取得所有待審核的加班申請（管理員用）- 加入後端去重
  */
 function getPendingOvertimeRequests(sessionToken) {
   const employee = checkSession_(sessionToken);
@@ -164,39 +185,52 @@ function getPendingOvertimeRequests(sessionToken) {
   };
   
   const requests = [];
+  // ✅ 後端去重：同一員工同一日期同一開始時間只取最新一筆（rowNumber 最大）
+  const seenKeys = {};
+  
   for (let i = 1; i < values.length; i++) {
     const row = values[i];
     const status = String(row[9]).trim().toLowerCase();
     
     if (status === "pending") {
-      requests.push({
-      rowNumber: i + 1,
-      requestId: row[0],
-      employeeId: row[1],
-      employeeName: row[2],
-      overtimeDate: formatDate(row[3]),
-      startTime: formatTime(row[4]),
-      endTime: formatTime(row[5]),
-      hours: parseFloat(row[6]) || 0,
-      reason: row[7],
-      applyDate: formatDate(row[8]),
-      compensatoryHours: parseFloat(row[14]) || 0  // ✅ 加入這行
-    });
+      const employeeId = String(row[1]).trim();
+      const date = formatDate(row[3]);
+      const startT = formatTime(row[4]);
+      const key = `${employeeId}_${date}_${startT}`;
+      
+      // 同一 key 出現多次，保留 rowNumber 最大的（最新提交的）
+      if (seenKeys[key] !== undefined) {
+        Logger.log(`⚠️ 發現重複申請 key=${key}，row ${i+1} 覆蓋 row ${seenKeys[key].rowNumber}`);
+        // 從 requests 移除舊的
+        const oldIdx = requests.findIndex(r => r.rowNumber === seenKeys[key].rowNumber);
+        if (oldIdx !== -1) requests.splice(oldIdx, 1);
+      }
+      
+      const entry = {
+        rowNumber: i + 1,
+        requestId: row[0],
+        employeeId: row[1],
+        employeeName: row[2],
+        overtimeDate: date,
+        startTime: startT,
+        endTime: formatTime(row[5]),
+        hours: parseFloat(row[6]) || 0,
+        reason: row[7],
+        applyDate: formatDate(row[8]),
+        compensatoryHours: parseFloat(row[14]) || 0
+      };
+      
+      requests.push(entry);
+      seenKeys[key] = entry;
     }
   }
   
-  Logger.log(`📊 共 ${requests.length} 筆待審核加班申請`);
+  Logger.log(`📊 共 ${requests.length} 筆待審核加班申請（已去重）`);
   return { ok: true, requests: requests };
 }
 
-// OvertimeOperations.gs - 加班審核功能（含 LINE 通知）
-
 /**
- * 審核加班申請（完整版 - 含 LINE 通知）
- * @param {string} sessionToken - Session Token
- * @param {number} rowNumber - 試算表行號
- * @param {string} action - 審核動作 (approve/reject)
- * @param {string} comment - 審核意見
+ * ✅ 審核加班申請（完整版 - 含自動更新薪資）
  */
 function reviewOvertimeRequest(sessionToken, rowNumber, action, comment) {
   const employee = checkSession_(sessionToken);
@@ -210,7 +244,6 @@ function reviewOvertimeRequest(sessionToken, rowNumber, action, comment) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_OVERTIME);
   if (!sheet) return { ok: false, msg: "找不到加班申請工作表" };
   
-  // 🔧 關鍵修正：嚴格處理 action 參數
   const actionStr = String(action).trim().toLowerCase();
   const isApprove = (actionStr === "approve");
   const status = isApprove ? "approved" : "rejected";
@@ -219,29 +252,26 @@ function reviewOvertimeRequest(sessionToken, rowNumber, action, comment) {
   Logger.log(`📥 審核請求: rowNumber=${rowNumber}, action="${action}", 處理後="${actionStr}", isApprove=${isApprove}, 目標狀態="${status}"`);
   
   try {
-    // 👉 取得加班申請的完整資訊（用於通知）
-    const record = sheet.getRange(rowNumber, 1, 1, 14).getValues()[0];
-    const requestId = record[0];       // 申請ID
-    const employeeId = record[1];      // 員工ID
-    const employeeName = record[2];    // 員工姓名
-    const overtimeDate = record[3];    // 加班日期
-    const startTime = record[4];       // 開始時間
-    const endTime = record[5];         // 結束時間
-    const hours = record[6];           // 加班時數
-    const reason = record[7];          // 申請原因
+    const record = sheet.getRange(rowNumber, 1, 1, 15).getValues()[0];
+    const requestId = record[0];
+    const employeeId = record[1];
+    const employeeName = record[2];
+    const overtimeDate = record[3];
+    const startTime = record[4];
+    const endTime = record[5];
+    const hours = record[6];
+    const reason = record[7];
     
     Logger.log(`📋 審核對象: ${employeeName}, 日期: ${formatDate(overtimeDate)}, 時數: ${hours}`);
     
-    // 更新審核資訊
-    sheet.getRange(rowNumber, 10).setValue(status);           // 審核狀態
-    sheet.getRange(rowNumber, 11).setValue(user.userId);      // 審核人ID
-    sheet.getRange(rowNumber, 12).setValue(user.name);        // 審核人姓名
-    sheet.getRange(rowNumber, 13).setValue(reviewTime);       // 審核時間
-    sheet.getRange(rowNumber, 14).setValue(comment || "");    // 審核意見
+    sheet.getRange(rowNumber, 10).setValue(status);
+    sheet.getRange(rowNumber, 11).setValue(user.userId);
+    sheet.getRange(rowNumber, 12).setValue(user.name);
+    sheet.getRange(rowNumber, 13).setValue(reviewTime);
+    sheet.getRange(rowNumber, 14).setValue(comment || "");
     
     SpreadsheetApp.flush();
     
-    // 驗證寫入狀態
     const actualStatus = String(sheet.getRange(rowNumber, 10).getValue()).trim().toLowerCase();
     Logger.log(`✅ 審核完成: 預期=${status}, 實際=${actualStatus}`);
     
@@ -253,24 +283,50 @@ function reviewOvertimeRequest(sessionToken, rowNumber, action, comment) {
       };
     }
     
-    // 👉 發送 LINE 通知
+    if (isApprove) {
+      try {
+        let yearMonth = '';
+        if (overtimeDate instanceof Date) {
+          yearMonth = Utilities.formatDate(overtimeDate, 'Asia/Taipei', 'yyyy-MM');
+        } else if (typeof overtimeDate === 'string') {
+          yearMonth = overtimeDate.substring(0, 7);
+        }
+        
+        Logger.log(`🔄 開始更新 ${employeeName} 的 ${yearMonth} 薪資...`);
+        
+        const recalcResult = calculateMonthlySalary(employeeId, yearMonth);
+        
+        if (recalcResult.success) {
+          const saveResult = saveMonthlySalary(recalcResult.data);
+          if (saveResult.success) {
+            Logger.log(`✅ 已自動更新 ${employeeName} 的 ${yearMonth} 薪資`);
+          } else {
+            Logger.log(`⚠️ 薪資儲存失敗: ${saveResult.message}`);
+          }
+        } else {
+          Logger.log(`⚠️ 薪資計算失敗: ${recalcResult.message}`);
+        }
+        
+      } catch (error) {
+        Logger.log(`⚠️ 自動更新薪資時發生錯誤: ${error.message}`);
+      }
+    }
+    
     try {
       notifyOvertimeReview(
         employeeId,
         employeeName,
         formatDate(overtimeDate),
         hours,
-        user.name,           // 審核人姓名
+        user.name,
         isApprove,
         comment || ""
       );
       Logger.log(`📤 已發送加班審核通知給 ${employeeName} (${employeeId})`);
     } catch (err) {
       Logger.log(`⚠️ LINE 通知發送失敗: ${err.message}`);
-      // 通知失敗不影響審核流程
     }
     
-    // 🔧 關鍵修正：根據 isApprove 決定回傳碼
     const resultCode = isApprove ? "OVERTIME_APPROVED" : "OVERTIME_REJECTED";
     Logger.log(`✅ 返回結果碼: ${resultCode}`);
     
@@ -298,8 +354,7 @@ function formatDate(date) {
 }
 
 /**
- * 🔧 升級工具：為現有工作表新增補休時數欄位
- * 只需執行一次
+ * 🔧 升級工具：為現有工作表新增補休時數欄位（只需執行一次）
  */
 function upgradeOvertimeSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -311,7 +366,6 @@ function upgradeOvertimeSheet() {
     return;
   }
   
-  // 檢查是否已有第 15 欄
   const lastCol = sheet.getLastColumn();
   
   if (lastCol >= 15) {
@@ -322,11 +376,9 @@ function upgradeOvertimeSheet() {
     }
   }
   
-  // 新增第 15 欄標題
   sheet.getRange(1, 15).setValue("補休時數").setFontWeight("bold");
   sheet.setColumnWidth(15, 80);
   
-  // 為所有現有記錄填入預設值 0
   const lastRow = sheet.getLastRow();
   if (lastRow > 1) {
     const defaultValues = Array(lastRow - 1).fill([0]);
@@ -335,6 +387,7 @@ function upgradeOvertimeSheet() {
   
   Logger.log(`✅ 升級完成！已為 ${lastRow - 1} 筆記錄新增補休時數欄位`);
 }
+
 // ==================== Handlers ====================
 
 function handleGetEmployeeOvertime(params) {
@@ -349,20 +402,19 @@ function handleGetPendingOvertime(params) {
 
 /**
  * 審核加班申請
- * 🔧 修正：接收 reviewAction 參數
  */
 function handleReviewOvertime(params) {
-  const { token, rowNumber, reviewAction, comment } = params;  // ✅ 改用 reviewAction
+  const { token, rowNumber, reviewAction, comment } = params;
   
   Logger.log(`📥 handleReviewOvertime 收到參數:`);
   Logger.log(`   - rowNumber: ${rowNumber}`);
-  Logger.log(`   - reviewAction: "${reviewAction}"`);  // ✅ 改用 reviewAction
+  Logger.log(`   - reviewAction: "${reviewAction}"`);
   Logger.log(`   - comment: "${comment}"`);
   
   return reviewOvertimeRequest(
     token, 
     parseInt(rowNumber), 
-    reviewAction,  // ✅ 改用 reviewAction
+    reviewAction,
     comment || ""
   );
 }
