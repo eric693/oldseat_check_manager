@@ -898,12 +898,6 @@ async function handleSalaryConfigSubmit(e) {
     const paymentDay = safeGetValue('config-payment-day') || '5';
     const note = safeGetValue('config-note');
     
-    // 驗證
-    if (!employeeId || !employeeName || !baseSalary || parseFloat(baseSalary) <= 0) {
-        showNotification(t('SALARY_FILL_REQUIRED'), 'error');
-        return;
-    }
-    
     if (!employeeType || !salaryType) {
         showNotification(t('SALARY_SELECT_TYPE'), 'error');
         return;
