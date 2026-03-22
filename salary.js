@@ -827,7 +827,7 @@ function bindSalaryEvents() {
  * ✅ 處理薪資設定表單提交（完整版 - 含所有津貼與扣款）
  */
 async function handleSalaryConfigSubmit(e) {
-    e.preventDefault();
+    // e.preventDefault();
     
     console.log('📝 開始提交薪資設定表單（完整版）');
     
@@ -953,7 +953,7 @@ async function handleSalaryConfigSubmit(e) {
         
         if (res.ok) {
             showNotification(t('SALARY_SAVE_SUCCESS'), 'success');
-            e.target.reset();
+            // e.target.reset();
             
             // 重置所有輸入欄位為 0
             const resetFields = [
